@@ -34,7 +34,7 @@ def train_val_epoch(
     dice_score = []
     pbar = tqdm(dataloader)
     for i, data in enumerate(pbar):
-        pbar.set_description(f"[Epoch {str(epoch+1).zfill(3)}]")
+        pbar.set_description(f"[{'Train' if train else 'Val'} epoch {str(epoch+1).zfill(3)}]")
         images, gts = data
         images = images.to(device).double()
         gts = gts.to(device)
@@ -46,10 +46,10 @@ def train_val_epoch(
         # pass data through model
         preds = model(images)
         loss = loss_fn(preds, gts)
-        loss.backward()
 
-        # adjust weights
+        # compute gradients and adjust weights
         if train:
+            loss.backward()
             optimizer.step()
 
         # update progress bar
@@ -79,8 +79,8 @@ def main():
         mask_root="/home/jonas/Downloads/CamVid/train_labels",
     )
     val_dataset = CustomDataset(
-        image_root="/home/jonas/Documents/data/CamVid/val",
-        mask_root="/home/jonas/Documents/data/CamVid/val_labels",
+        image_root="/home/jonas/Downloads/CamVid/val",
+        mask_root="/home/jonas/Downloads/CamVid/val_labels",
     )
 
     train_dataloader = DataLoader(
