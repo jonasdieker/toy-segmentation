@@ -1,10 +1,10 @@
+from glob import glob
+
 import numpy as np
 import torch
 import torchvision.transforms as T
-from torch.utils.data import Dataset
 from PIL import Image
-from glob import glob
-
+from torch.utils.data import Dataset
 
 RGBLabel2LabelName = {
     (128, 128, 128): "Sky",
@@ -70,8 +70,14 @@ class CustomDataset(Dataset):
     def __getitem__(self, index):
         # load data
         image = np.array(Image.open(self.image_paths[index]).convert("RGB"))
-        gt_mask = np.array(Image.open(self.gt_paths[index]))
-        gt_mask = gt_mask / (0.039 * 25)
+        gt = np.array(Image.open(self.gt_paths[index]))
+        gt = gt / (0.039 * 25)
+
+        # map rgb value to class idx
+        gt_mask = np.zeros((gt.shape[0], gt.shape[1]))
+        for key, val in RGBLabel2LabelName.items():
+          label_idx = LabelName2LabelIndex[val]
+          gt_mask[np.all(gt == key, axis=-1)] = label_idx
 
         # transform data
         transforms_img = T.Compose(

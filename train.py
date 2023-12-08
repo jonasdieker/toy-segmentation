@@ -5,13 +5,14 @@ train func
 val func
 hyper-params
 """
-from tqdm import tqdm
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim import Optimizer
 from torch.nn import CrossEntropyLoss
+from torch.optim import Optimizer
 from torch.utils.data import DataLoader
+from torchmetrics.functional import dice
+from tqdm import tqdm
 
 from dataset import CustomDataset
 from model import UNet
@@ -25,17 +26,18 @@ def train_val_epoch(
     dataloader: DataLoader,
     loss_fn: CrossEntropyLoss,
     epoch: int,
+    device: str,
     optimizer: Optimizer = None,
     train: bool = True,
 ):
     running_loss = 0
+    dice_score = []
     pbar = tqdm(dataloader)
     for i, data in enumerate(pbar):
-        pbar.set_description(f"[Epoch {str(epoch+1).zfill(3)}]: ")
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        pbar.set_description(f"[Epoch {str(epoch+1).zfill(3)}]")
         images, gts = data
         images = images.to(device).double()
-        gts.to(device)
+        gts = gts.to(device)
 
         # zero gradients
         if train:
@@ -54,8 +56,10 @@ def train_val_epoch(
         running_loss += loss.item()
         if i % 5 == 4:
             last_loss = running_loss / 5
-            pbar.postfix(f"loss: {last_loss}")
+            pbar.set_postfix({"loss": last_loss})
             running_loss = 0
+        dice_score.append(dice(preds, gts))
+    print(f"Dice Score: {sum(dice_score)/len(dice_score)}")
 
 
 def main():
@@ -65,16 +69,18 @@ def main():
     betas = (0.9, 0.999)
     num_classes = 12
 
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
     loss = CrossEntropyLoss()
     model = UNet(3, num_classes).double()
     optimizer = optim.Adam(model.parameters(), lr=lr, betas=betas)
     train_dataset = CustomDataset(
         image_root="/home/jonas/Downloads/CamVid/train",
-        mask_root="/home/jonas/Downloads/CamVid/trainannot",
+        mask_root="/home/jonas/Downloads/CamVid/train_labels",
     )
     val_dataset = CustomDataset(
         image_root="/home/jonas/Documents/data/CamVid/val",
-        mask_root="/home/jonas/Documents/data/CamVid/valannot",
+        mask_root="/home/jonas/Documents/data/CamVid/val_labels",
     )
 
     train_dataloader = DataLoader(
@@ -83,8 +89,8 @@ def main():
     val_dataloader = DataLoader(val_dataset, batch_size, shuffle=False, num_workers=4)
 
     for epoch in range(max_epochs):
-        train_val_epoch(model, train_dataloader, loss, epoch, optimizer, train=True)
-        train_val_epoch(model, val_dataloader, loss, epoch, train=False)
+        train_val_epoch(model, train_dataloader, loss, epoch, device, optimizer, train=True)
+        train_val_epoch(model, val_dataloader, loss, epoch, device, train=False)
 
     torch.save(model.state_dict(), "model.pth")
 
