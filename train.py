@@ -1,10 +1,5 @@
-"""
-Setup data loader
-Loss
-train func
-val func
-hyper-params
-"""
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -16,9 +11,14 @@ from tqdm import tqdm
 
 from dataset import CustomDataset
 from model import UNet
+from visualize import convert_class_idx_2_rgb
 
-# perform argmax over channels of output
-# apply crossentropy
+
+def plot_data(image, gt):
+    _, axs = plt.subplots(1, 2, figsize=(10, 5))
+    axs[0].imshow(np.moveaxis(image.numpy(), 0, -1))
+    axs[1].imshow(gt)
+    plt.show()
 
 
 def train_val_epoch(
@@ -36,6 +36,9 @@ def train_val_epoch(
     for i, data in enumerate(pbar):
         pbar.set_description(f"[{'Train' if train else 'Val'} epoch {str(epoch+1).zfill(3)}]")
         images, gts = data
+
+        plot_data(images[0], convert_class_idx_2_rgb(gts[0]))
+
         images = images.to(device).double()
         gts = gts.to(device)
 
@@ -63,7 +66,7 @@ def train_val_epoch(
 
 
 def main():
-    batch_size = 8
+    batch_size = 2
     max_epochs = 20
     lr = 0.0001
     betas = (0.9, 0.999)
