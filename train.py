@@ -37,7 +37,7 @@ def train_val_epoch(
         pbar.set_description(f"[{'Train' if train else 'Val'} epoch {str(epoch+1).zfill(3)}]")
         images, gts = data
 
-        plot_data(images[0], convert_class_idx_2_rgb(gts[0]))
+        # plot_data(images[0], convert_class_idx_2_rgb(gts[0]))
 
         images = images.to(device).double()
         gts = gts.to(device)
