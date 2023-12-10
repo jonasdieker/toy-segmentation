@@ -219,11 +219,11 @@ class MixVisionTransformer(nn.Module):
 class mit_b0(MixVisionTransformer):
     """Smallest SegFormer backbone with ~3.4 million parameters."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, num_classes=12, **kwargs):
         super(mit_b0, self).__init__(
             patch_size=4, embed_dims=[32, 64, 160, 256], num_heads=[1, 2, 5, 8], mlp_ratios=[4, 4, 4, 4],
             qkv_bias=True, norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[2, 2, 2, 2], sr_ratios=[8, 4, 2, 1],
-            drop_rate=0.0)
+            drop_rate=0.0, num_classes=num_classes)
         
 
 class MLP(nn.Module):
@@ -238,30 +238,6 @@ class MLP(nn.Module):
         x = x.flatten(2).transpose(1, 2)
         x = self.proj(x)
         return x
-    
-
-def resize(input,
-           size=None,
-           scale_factor=None,
-           mode='nearest',
-           align_corners=None,
-           warning=True):
-    if warning:
-        if size is not None and align_corners:
-            input_h, input_w = tuple(int(x) for x in input.shape[2:])
-            output_h, output_w = tuple(int(x) for x in size)
-            if output_h > input_h or output_w > output_h:
-                if ((output_h > 1 and output_w > 1 and input_h > 1
-                     and input_w > 1) and (output_h - 1) % (input_h - 1)
-                        and (output_w - 1) % (input_w - 1)):
-                    warnings.warn(
-                        f'When align_corners={align_corners}, '
-                        'the output would more aligned if '
-                        f'input size {(input_h, input_w)} is `x+1` and '
-                        f'out size {(output_h, output_w)} is `nx+1`')
-    if isinstance(size, torch.Size):
-        size = tuple(int(x) for x in size)
-    return F.interpolate(input, size, scale_factor, mode, align_corners)
 
 
 class SegFormerHead(nn.Module):
@@ -296,14 +272,16 @@ class SegFormerHead(nn.Module):
         ############## MLP decoder on C1-C4 ###########
         n, _, h, w = c4.shape
 
+        target_size = tuple(int(x) for x in c1.size()[2:])
+
         _c4 = self.linear_c4(c4).permute(0,2,1).reshape(n, -1, c4.shape[2], c4.shape[3])
-        _c4 = resize(_c4, size=c1.size()[2:],mode='bilinear',align_corners=False)
+        _c4 = F.interpolate(_c4, target_size, mode="bilinear", align_corners=False)
 
         _c3 = self.linear_c3(c3).permute(0,2,1).reshape(n, -1, c3.shape[2], c3.shape[3])
-        _c3 = resize(_c3, size=c1.size()[2:],mode='bilinear',align_corners=False)
+        _c3 = F.interpolate(_c3, target_size, mode="bilinear", align_corners=False)
 
         _c2 = self.linear_c2(c2).permute(0,2,1).reshape(n, -1, c2.shape[2], c2.shape[3])
-        _c2 = resize(_c2, size=c1.size()[2:],mode='bilinear',align_corners=False)
+        _c2 = F.interpolate(_c2, target_size, mode="bilinear", align_corners=False)
 
         _c1 = self.linear_c1(c1).permute(0,2,1).reshape(n, -1, c1.shape[2], c1.shape[3])
 
@@ -316,19 +294,19 @@ class SegFormerHead(nn.Module):
         return x
 
 
-class SegFormerHead_cfg(SegFormerHead):
-    def __init__(self, **kwargs):
+class SegFormerHead_b0(SegFormerHead):
+    def __init__(self, num_classes=12, **kwargs):
         super().__init__(
             in_channels=[32, 64, 160, 256], in_index=[0, 1, 2, 3], feature_strides=[4, 8, 16, 32],
-            num_classes=12, decoder_params=dict(embed_dim=256), dropout_ratio=0.1
+            num_classes=num_classes, decoder_params=dict(embed_dim=256), dropout_ratio=0.1
         )  
 
 
 class SegFormer(nn.Module):
-    def __init__(self):
+    def __init__(self, num_classes):
         super().__init__()
-        self.bb = mit_b0()
-        self.head = SegFormerHead_cfg()
+        self.bb = mit_b0(num_classes=num_classes)
+        self.head = SegFormerHead_b0(num_classes=num_classes)
 
     def forward(self, x):
         x = self.bb(x)
@@ -337,7 +315,7 @@ class SegFormer(nn.Module):
 
 
 if __name__ == "__main__":
-    segformer = SegFormer()
+    segformer = SegFormer(num_classes=12)
     img = torch.randn((1, 3, 224, 224))
     out = segformer(img)
     print(out.shape)
