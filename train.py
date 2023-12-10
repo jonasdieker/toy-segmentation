@@ -10,7 +10,7 @@ from torchmetrics.functional import dice
 from tqdm import tqdm
 
 from dataset import CustomDataset
-from model import UNet
+from unet import UNet
 from visualize import convert_class_idx_2_rgb
 
 

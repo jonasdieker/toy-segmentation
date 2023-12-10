@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from torchmetrics.functional import dice
 
 from dataset import CustomDataset, LabelName2LabelIndex, RGBLabel2LabelName
-from model import UNet
+from unet import UNet
 
 LabelName2RGBLabel = {v: k for k, v in RGBLabel2LabelName.items()}
 LabelIndex2LabelName = {v: k for k, v in LabelName2LabelIndex.items()}
