@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from skimage.transform import resize
 from torch.nn import CrossEntropyLoss
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
@@ -10,6 +11,7 @@ from torchmetrics.functional import dice
 from tqdm import tqdm
 
 from dataset import CustomDataset
+from segformer import SegFormer
 from unet import UNet
 from visualize import convert_class_idx_2_rgb
 
@@ -48,6 +50,9 @@ def train_val_epoch(
 
         # pass data through model
         preds = model(images)
+        if isinstance(model, SegFormer):
+            gts = resize(gts, (gts.shape[0], 56, 56))
+            gts = torch.from_numpy(gts).long().to(device)
         loss = loss_fn(preds, gts)
 
         # compute gradients and adjust weights
@@ -75,7 +80,8 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     loss = CrossEntropyLoss()
-    model = UNet(3, num_classes).double()
+    # model = UNet(3, num_classes).double()
+    model = SegFormer(num_classes).double()
     optimizer = optim.Adam(model.parameters(), lr=lr, betas=betas)
     train_dataset = CustomDataset(
         image_root="/home/jonas/Downloads/CamVid/train",
