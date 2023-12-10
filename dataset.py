@@ -90,7 +90,7 @@ class CustomDataset(Dataset):
             transform = T.Compose(
                 [
                     T.Resize(300, antialias=True),
-                    T.RandomCrop(256),
+                    T.RandomCrop(224),
                     T.RandomHorizontalFlip(p=0.3),
                 ]
             )

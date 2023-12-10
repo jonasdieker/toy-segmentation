@@ -311,6 +311,7 @@ class SegFormer(nn.Module):
     def forward(self, x):
         x = self.bb(x)
         x = self.head(x)
+        x = F.interpolate(x, x.shape[-1] * 4, mode="bilinear", align_corners=False)
         return x
 
 

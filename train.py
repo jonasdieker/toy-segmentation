@@ -3,10 +3,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from skimage.transform import resize
 from torch.nn import CrossEntropyLoss
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
+from torchmetrics import JaccardIndex
 from torchmetrics.functional import dice
 from tqdm import tqdm
 
@@ -15,6 +15,7 @@ from segformer import SegFormer
 from unet import UNet
 from visualize import convert_class_idx_2_rgb
 
+jaccard = JaccardIndex(task="multiclass", num_classes=12)
 
 def plot_data(image, gt):
     _, axs = plt.subplots(1, 2, figsize=(10, 5))
@@ -32,8 +33,12 @@ def train_val_epoch(
     optimizer: Optimizer = None,
     train: bool = True,
 ):
+    if train:
+        model.train()
+    else:
+        model.eval()
     running_loss = 0
-    dice_score = []
+    dice_score, iou = [], []
     pbar = tqdm(dataloader)
     for i, data in enumerate(pbar):
         pbar.set_description(f"[{'Train' if train else 'Val'} epoch {str(epoch+1).zfill(3)}]")
@@ -50,9 +55,6 @@ def train_val_epoch(
 
         # pass data through model
         preds = model(images)
-        if isinstance(model, SegFormer):
-            gts = resize(gts, (gts.shape[0], 56, 56))
-            gts = torch.from_numpy(gts).long().to(device)
         loss = loss_fn(preds, gts)
 
         # compute gradients and adjust weights
@@ -67,7 +69,9 @@ def train_val_epoch(
             pbar.set_postfix({"loss": last_loss})
             running_loss = 0
         dice_score.append(dice(preds, gts))
+        iou.append(jaccard(preds, gts))
     print(f"Dice Score: {sum(dice_score)/len(dice_score)}")
+    print(f"mIoU: {sum(iou)/len(iou)}")
 
 
 def main():
@@ -100,8 +104,7 @@ def main():
     for epoch in range(max_epochs):
         train_val_epoch(model, train_dataloader, loss, epoch, device, optimizer, train=True)
         train_val_epoch(model, val_dataloader, loss, epoch, device, train=False)
-
-    torch.save(model.state_dict(), "model.pth")
+        torch.save(model.state_dict(), "model.pth")
 
 
 if __name__ == "__main__":

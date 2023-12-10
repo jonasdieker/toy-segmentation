@@ -1,11 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from skimage.transform import resize
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader
 from torchmetrics.functional import dice
 
 from dataset import CustomDataset, LabelName2LabelIndex, RGBLabel2LabelName
+from segformer import SegFormer
 from unet import UNet
 
 LabelName2RGBLabel = {v: k for k, v in RGBLabel2LabelName.items()}
@@ -20,17 +22,20 @@ def convert_class_idx_2_rgb(mask: np.ndarray) -> np.ndarray:
 
 if __name__ == "__main__":
 
-    model = UNet(3, 12)
+    # model = UNet(3, 12)
+    model = SegFormer(num_classes=12)
+    model.load_state_dict(torch.load("model.pth", map_location=torch.device("cpu")))
+
     loss_fn = CrossEntropyLoss()
     val_dataset = CustomDataset(
         image_root="/home/jonas/Downloads/CamVid/val", 
         mask_root="/home/jonas/Downloads/CamVid/val_labels", 
-        test=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=1)
+        test=False)
+    val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=True)
 
     image, gt = next(iter(val_dataloader))
+
     pred = model(image)
-    model.load_state_dict(torch.load("model.pth", map_location=torch.device("cpu")))
     print(pred.shape)
     loss = loss_fn(pred, gt)
     print(f"loss: {loss}, dice_score: {dice(pred, gt)}")

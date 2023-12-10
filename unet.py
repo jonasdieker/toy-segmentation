@@ -3,17 +3,24 @@ import torch.nn as nn
 
 
 class Block(nn.Module):
-    def __init__(self, in_channels, out_channels, down=True):
+    def __init__(self, in_channels, out_channels, dropout=None, down=True):
         super().__init__()
+        self.dropout = dropout
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 3, stride=2, padding=1)
             if down
             else nn.ConvTranspose2d(in_channels, out_channels, 4, stride=2, padding=1),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(),
         )
+        if dropout:
+            self.drop = nn.Dropout2d(dropout)
 
     def forward(self, x):
-        return self.conv(x)
+        x = self.conv(x)
+        if self.dropout:
+            x = self.drop(x)
+        return x
 
 
 class UNet(nn.Module):
