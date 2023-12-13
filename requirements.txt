@@ -3,4 +3,5 @@ matplotlib
 numpy
 torchmetrics
 tqdm
-PIL
+pillow
+scikit-image
