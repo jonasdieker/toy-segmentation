@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import torch
 from skimage.transform import resize
 from torch.nn import CrossEntropyLoss
@@ -13,6 +14,7 @@ from unet import UNet
 LabelName2RGBLabel = {v: k for k, v in RGBLabel2LabelName.items()}
 LabelIndex2LabelName = {v: k for k, v in LabelName2LabelIndex.items()}
 
+
 def convert_class_idx_2_rgb(mask: np.ndarray) -> np.ndarray:
     rgb_mask = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.int32)
     for k, v in LabelIndex2LabelName.items():
@@ -20,17 +22,20 @@ def convert_class_idx_2_rgb(mask: np.ndarray) -> np.ndarray:
         rgb_mask[mask == k] = rgb_colour
     return rgb_mask
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     # model = UNet(3, 12)
-    model = SegFormer(num_classes=12)
-    model.load_state_dict(torch.load("model.pth", map_location=torch.device("cpu")))
+    # model = SegFormer(num_classes=12)
+    model = UNet(3, 12)
+    model.load_state_dict(torch.load("unet.pth", map_location=torch.device("cpu")))
 
     loss_fn = CrossEntropyLoss()
+    data_root = "/home/jonas/Downloads/CamVid/"
     val_dataset = CustomDataset(
-        image_root="/home/jonas/Downloads/CamVid/val", 
-        mask_root="/home/jonas/Downloads/CamVid/val_labels", 
-        test=False)
+        image_root=os.path.join(data_root, "val"),
+        mask_root=os.path.join(data_root, "val_labels"),
+        test=False,
+    )
     val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=True)
 
     image, gt = next(iter(val_dataloader))
@@ -54,4 +59,5 @@ if __name__ == "__main__":
     axs[1].title.set_text("ground truth")
     axs[2].imshow(rgb_pred)
     axs[2].title.set_text("prediction")
-    plt.show()
+    plt.savefig("inference.png")
+    # plt.show()

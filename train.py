@@ -9,13 +9,16 @@ from torch.utils.data import DataLoader
 from torchmetrics import JaccardIndex
 from torchmetrics.functional import dice
 from tqdm import tqdm
+import os
 
 from dataset import CustomDataset
 from segformer import SegFormer
 from unet import UNet
 from visualize import convert_class_idx_2_rgb
 
-jaccard = JaccardIndex(task="multiclass", num_classes=12)
+device = "cuda" if torch.cuda.is_available() else "cpu"
+jaccard = JaccardIndex(task="multiclass", num_classes=12).to(device)
+
 
 def plot_data(image, gt):
     _, axs = plt.subplots(1, 2, figsize=(10, 5))
@@ -41,7 +44,9 @@ def train_val_epoch(
     dice_score, iou = [], []
     pbar = tqdm(dataloader)
     for i, data in enumerate(pbar):
-        pbar.set_description(f"[{'Train' if train else 'Val'} epoch {str(epoch+1).zfill(3)}]")
+        pbar.set_description(
+            f"[{'Train' if train else 'Val'} epoch {str(epoch+1).zfill(3)}]"
+        )
         images, gts = data
 
         # plot_data(images[0], convert_class_idx_2_rgb(gts[0]))
@@ -75,25 +80,24 @@ def train_val_epoch(
 
 
 def main():
-    batch_size = 2
+    batch_size = 8
     max_epochs = 20
     lr = 0.0001
     betas = (0.9, 0.999)
     num_classes = 12
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    data_root = "/home/jonas/Downloads/CamVid/"
 
     loss = CrossEntropyLoss()
-    # model = UNet(3, num_classes).double()
-    model = SegFormer(num_classes).double()
+    model = UNet(3, num_classes).double().to(device)
+    # model = SegFormer(num_classes).double().to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr, betas=betas)
     train_dataset = CustomDataset(
-        image_root="/home/jonas/Downloads/CamVid/train",
-        mask_root="/home/jonas/Downloads/CamVid/train_labels",
+        image_root=os.path.join(data_root, "train"),
+        mask_root=os.path.join(data_root, "train_labels"),
     )
     val_dataset = CustomDataset(
-        image_root="/home/jonas/Downloads/CamVid/val",
-        mask_root="/home/jonas/Downloads/CamVid/val_labels",
+        image_root=os.path.join(data_root, "val"),
+        mask_root=os.path.join(data_root, "val_labels"),
     )
 
     train_dataloader = DataLoader(
@@ -102,9 +106,11 @@ def main():
     val_dataloader = DataLoader(val_dataset, batch_size, shuffle=False, num_workers=4)
 
     for epoch in range(max_epochs):
-        train_val_epoch(model, train_dataloader, loss, epoch, device, optimizer, train=True)
+        train_val_epoch(
+            model, train_dataloader, loss, epoch, device, optimizer, train=True
+        )
         train_val_epoch(model, val_dataloader, loss, epoch, device, train=False)
-        torch.save(model.state_dict(), "model.pth")
+        torch.save(model.state_dict(), "segformer.pth")
 
 
 if __name__ == "__main__":
