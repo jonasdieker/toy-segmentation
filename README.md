@@ -10,9 +10,9 @@ Without doing too much hyper-parameter tuning these are the results obtained on 
 
 |Model|Dice Score|mIoU|
 |---|---|---|
-|U-Net| - | - |
+|U-Net| 0.72 | 0.34 |
 |DeepLabV3| - | - |
-|SegFormer (B0)| - | - |
+|SegFormer (B0)| 0.77 | 0.27 |
 
 ## Getting Started
 
