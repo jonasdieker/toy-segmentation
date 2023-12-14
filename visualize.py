@@ -6,6 +6,7 @@ from skimage.transform import resize
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader
 from torchmetrics.functional import dice
+from torchmetrics import JaccardIndex
 
 from dataset import CustomDataset, LabelName2LabelIndex, RGBLabel2LabelName
 from segformer import SegFormer
@@ -13,6 +14,7 @@ from unet import UNet
 
 LabelName2RGBLabel = {v: k for k, v in RGBLabel2LabelName.items()}
 LabelIndex2LabelName = {v: k for k, v in LabelName2LabelIndex.items()}
+jaccard = JaccardIndex(task="multiclass", num_classes=12)
 
 
 def convert_class_idx_2_rgb(mask: np.ndarray) -> np.ndarray:
@@ -25,9 +27,9 @@ def convert_class_idx_2_rgb(mask: np.ndarray) -> np.ndarray:
 
 if __name__ == "__main__":
     # model = UNet(3, 12)
-    # model = SegFormer(num_classes=12)
-    model = UNet(3, 12)
-    model.load_state_dict(torch.load("unet.pth", map_location=torch.device("cpu")))
+    model = SegFormer(num_classes=12)
+    # model = UNet(3, 12)
+    model.load_state_dict(torch.load("segformer.pth", map_location=torch.device("cpu")))
 
     loss_fn = CrossEntropyLoss()
     data_root = "/home/jonas/Downloads/CamVid/"
@@ -41,9 +43,8 @@ if __name__ == "__main__":
     image, gt = next(iter(val_dataloader))
 
     pred = model(image)
-    print(pred.shape)
     loss = loss_fn(pred, gt)
-    print(f"loss: {loss}, dice_score: {dice(pred, gt)}")
+    print(f"loss: {loss}, dice_score: {dice(pred, gt)}, IoU: {jaccard(pred, gt)}")
 
     # format ground truth
     gt = gt[0].numpy()
